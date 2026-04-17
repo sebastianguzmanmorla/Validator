@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>SebastianGuzmanMorla.Validator</PackageId>
-        <Version>1.0.0</Version>
+        <Version>1.0.1</Version>
         <Authors>Sebastián Guzmán Morla</Authors>
         <Description>Una librería de validación para .NET con generadores de código automáticos</Description>
         <PackageProjectUrl>https://github.com/sebastianguzmanmorla/Validator</PackageProjectUrl>
@@ -33,6 +33,12 @@
 
     <ItemGroup>
         <ProjectReference Include="..\SebastianGuzmanMorla.Validator.Generator\SebastianGuzmanMorla.Validator.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\SebastianGuzmanMorla.Validator.Generator\bin\$(Configuration)\netstandard2.0\SebastianGuzmanMorla.Validator.Generator.dll" 
+              Pack="true" 
+              PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
 
 </Project>
