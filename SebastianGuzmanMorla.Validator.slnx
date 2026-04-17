@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".env" />
+    <File Path="makefile" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="src\SebastianGuzmanMorla.Validator.Generator\SebastianGuzmanMorla.Validator.Generator.csproj" />
+  <Project Path="src\SebastianGuzmanMorla.Validator\SebastianGuzmanMorla.Validator.csproj" />
+</Solution>

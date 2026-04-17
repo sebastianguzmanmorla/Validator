@@ -1,0 +1,3 @@
+namespace SebastianGuzmanMorla.Validator.Interfaces;
+
+public interface IEntityValidation;
