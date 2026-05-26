@@ -67,7 +67,7 @@ El generador de código automáticamente registra los validadores en el contened
 ```csharp
 public partial class ConfigureServices
 {
-    // El generador agregará el código aquí
+    private static partial void RegisterValidators(IServiceCollection services);
 
     public static IServiceCollection ConfigureDomain(this IServiceCollection services)
     {
