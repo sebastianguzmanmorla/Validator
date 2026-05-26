@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/</PackageOutputPath>
         <PackageId>SebastianGuzmanMorla.Validator</PackageId>
-        <Version>1.0.1</Version>
+        <Version>1.0.2</Version>
         <Authors>Sebastián Guzmán Morla</Authors>
         <Description>Una librería de validación para .NET con generadores de código automáticos</Description>
         <PackageProjectUrl>https://github.com/sebastianguzmanmorla/Validator</PackageProjectUrl>
@@ -21,13 +22,22 @@
     <ItemGroup>
         <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
         <None Include="..\..\LICENSE" Pack="true" PackagePath="\"/>
+        <None Include="..\..\AGENTS.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
     <Target Name="PrintVersion">
         <Error Text="$(Version)"/>
     </Target>
 
-    <ItemGroup>
+    <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0"/>
+    </ItemGroup>
+    
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5"/>
     </ItemGroup>
 
