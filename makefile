@@ -1,43 +1,43 @@
 # Cargar variables desde .env si existe
 ifneq ("$(wildcard .env)","")
     include .env
-    export $(shell sed 's/=.*//' .env)
 endif
 
 # Variables
 PROJECT_PATH=src/SebastianGuzmanMorla.Validator/SebastianGuzmanMorla.Validator.csproj
-PACK_OUTPUT=bin/Release
+PACK_OUTPUT=artifacts
 NUGET_SOURCE=https://api.nuget.org/v3/index.json
 
-# Detección de versión
-VERSION=$(shell dotnet msbuild $(PROJECT_PATH) -nologo -t:PrintVersion -v:q 2>&1 | tail -1 | awk '{print $$NF}')
+# Comandos dependientes del sistema operativo
+ifeq ($(OS),Windows_NT)
+    RM_DIR = if exist "$(subst /,\,$(PACK_OUTPUT))" rmdir /s /q "$(subst /,\,$(PACK_OUTPUT))"
+else
+    RM_DIR = rm -rf $(PACK_OUTPUT)
+endif
 
-.PHONY: clean pack push version check-env
-
-version:
-	@echo "Versión detectada: $(VERSION)"
+.PHONY: clean pack push check-env
 
 check-env:
-	@if [ -z "$(API_KEY)" ]; then \
-		echo "Error: API_KEY no encontrada. Asegúrate de tener un archivo .env con API_KEY=xxx"; \
-		exit 1; \
-	fi
+ifndef API_KEY
+	$(error API_KEY no encontrada. Asegurate de tener un archivo .env con API_KEY=xxx)
+endif
 
 clean:
 	@echo "Limpiando binarios..."
-	@rm -rf $(PACK_OUTPUT)
+	@-$(RM_DIR)
 	@dotnet clean $(PROJECT_PATH) -c Release
 
 build:
-	@echo "Compilando SebastianGuzmanMorla.Validator $(VERSION)..."
+	@echo "Compilando SebastianGuzmanMorla.Validator..."
 	@dotnet build $(PROJECT_PATH) -c Release
 
 pack: clean build
-	@echo "Empaquetando SebastianGuzmanMorla.Validator $(VERSION)..."
+	@echo "Empaquetando SebastianGuzmanMorla.Validator..."
 	@dotnet pack $(PROJECT_PATH) -c Release -o $(PACK_OUTPUT)
 
 push: check-env pack
 	@echo "Publicando en NuGet..."
-	@dotnet nuget push $(PACK_OUTPUT)/SebastianGuzmanMorla.Validator.$(VERSION).nupkg \
+	@dotnet nuget push $(PACK_OUTPUT)/*.nupkg \
 		--api-key $(API_KEY) \
-		--source $(NUGET_SOURCE)
+		--source $(NUGET_SOURCE) \
+		--skip-duplicate

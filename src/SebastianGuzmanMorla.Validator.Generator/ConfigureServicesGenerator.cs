@@ -61,7 +61,7 @@ public sealed class ConfigureServicesGenerator : IIncrementalGenerator
                 sourceBuilder.AppendLine("public static partial class ConfigureServices");
                 sourceBuilder.AppendLine("{");
                 sourceBuilder.AppendLine(
-                    "    private static partial void ConfigureGenerated(IServiceCollection services)");
+                    "    private static partial void RegisterValidators(IServiceCollection services)");
                 sourceBuilder.AppendLine("    {");
 
                 foreach (ClassDeclarationSyntax? declaration in candidates)
@@ -88,7 +88,7 @@ public sealed class ConfigureServicesGenerator : IIncrementalGenerator
                 sourceBuilder.AppendLine("    }");
                 sourceBuilder.AppendLine("}");
 
-                context.AddSource("ConfigureServices.g.cs", sourceBuilder.ToString());
+                context.AddSource("ConfigureServices.RegisterValidators.g.cs", sourceBuilder.ToString());
             });
     }
 

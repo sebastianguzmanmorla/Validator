@@ -71,7 +71,7 @@ public partial class ConfigureServices
 
     public static IServiceCollection ConfigureDomain(this IServiceCollection services)
     {
-        ConfigureGenerated(services);
+        RegisterValidators(services);
 
         return services;
     }
@@ -196,7 +196,7 @@ El generador de código automáticamente creará:
 // Código generado automáticamente para ConfigureServices
 public static partial class ConfigureServices
 {
-    private static partial void ConfigureGenerated(IServiceCollection services)
+    private static partial void RegisterValidators(IServiceCollection services)
     {
         services.AddSingleton(typeof(IValidator<IDeviceIdValidation>), typeof(DeviceIdValidator));
         services.AddSingleton(typeof(IValidator<Device>), typeof(DeviceValidator));
@@ -222,18 +222,73 @@ Este ejemplo muestra:
 - Control de flujo de errores (`ValidationErrorHandle.StopProperty`, `ValidationErrorHandle.StopAll`)
 - Código generado automáticamente por el generador
 
+### Validación condicional con RuleForWhen
+
+Para ejecutar reglas de validación basadas en una condición dinámica (evaluada asíncronamente en tiempo de ejecución), utiliza el método `RuleForWhen` en lugar de `RuleFor`. El predicado condicional recibe el proveedor de servicios (`IServiceProvider`), la entidad y un token de cancelación.
+
+```csharp
+public class UserValidator : Validator<User>
+{
+    public UserValidator()
+    {
+        RuleForWhen(u => u.PromoCode, (serviceProvider, user, cancellationToken) => 
+            Task.FromResult(user.HasOptedInForPromo)
+        )
+        .NotEmpty((_, _) => "El código de promoción es obligatorio si se ha optado por la promoción");
+    }
+}
+```
+
+### Validación de objetos anidados y colecciones (ValidateEntity)
+
+La librería permite validar de forma automática propiedades que son otros objetos complejos o colecciones (como listas de entidades). Utilizando `ValidateEntity`, la librería resuelve dinámicamente el validador correspondiente desde el contenedor de dependencias (`IServiceProvider`), ejecuta la validación y añade los errores con rutas anidadas apropiadas (por ejemplo: `Address.Street` o `Phones[0].Number`).
+
+```csharp
+public class Company
+{
+    public Address Headquarters { get; set; }
+    public List<Employee> Employees { get; set; }
+}
+
+public class CompanyValidator : Validator<Company>
+{
+    public CompanyValidator()
+    {
+        // Valida la entidad anidada Headquarters usando IValidator<Address> registrado en el contenedor DI
+        ValidateEntity(c => c.Headquarters);
+
+        // Valida cada Employee en la lista usando IValidator<Employee> registrado en el contenedor DI
+        ValidateEntity(c => c.Employees);
+    }
+}
+```
+
 ## API
 
-### Métodos principales
+### Métodos principales (Configuración de Validator)
 
-- `RuleFor(propertyExpression)`: Define reglas para una propiedad.
-- `NotNull(messageFunc)`: Valida que la propiedad no sea nula.
-- `NotEmpty(messageFunc)`: Valida que la propiedad no esté vacía.
-- `EmailAddress(messageFunc)`: Valida formato de email.
-- `Minimum(value, messageFunc)`: Valida que el valor sea mayor o igual al mínimo.
-- `Maximum(value, messageFunc)`: Valida que el valor sea menor o igual al máximo.
-- `Must(predicate, messageFunc)`: Valida usando una función personalizada.
-- `When(condition)`: Ejecuta la validación solo si se cumple la condición.
+- `RuleFor(propertyExpression)`: Define reglas de validación para una propiedad.
+- `RuleForWhen(propertyExpression, whenPredicate)`: Define reglas de validación condicionales para una propiedad que sólo se ejecutan si el predicado asíncrono se cumple.
+- `ValidateEntity(propertyExpression)`: Valida una propiedad que es una entidad anidada o una colección de entidades, resolviendo su respectivo validador del contenedor DI.
+
+### Reglas de validación (ValidationPropertyRules)
+
+Todos estos métodos aceptan un parámetro opcional `ValidationErrorHandle` al final de la cadena para controlar el flujo de validación.
+
+- `NotNull(messageFunc)`: Valida que la propiedad no sea `null`.
+- `NotEmpty(messageFunc)`: Valida que una cadena no sea nula ni vacía, que una colección/arreglo no esté vacía (ej. `string[]`), o que un `Guid`/`Guid?` no sea igual a `Guid.Empty`.
+- `EmailAddress(messageFunc)`: Valida que la cadena tenga un formato de dirección de correo electrónico válido.
+- `Equal(value, messageFunc)`: Valida que el valor sea igual a una constante especificada.
+- `Equal(propertyExpression, messageFunc)`: Valida que el valor sea igual a otra propiedad de la misma entidad.
+- `NotEqual(value, messageFunc)`: Valida que el valor no sea igual a la constante especificada.
+- `NotEqual(propertyExpression, messageFunc)`: Valida que el valor no sea igual a otra propiedad de la misma entidad.
+- `Minimum(value, messageFunc)`: Valida que el valor sea mayor o igual a `value`.
+- `Maximum(value, messageFunc)`: Valida que el valor sea menor o igual a `value`.
+- `MinimumLength(length, messageFunc)`: Valida que la longitud de la cadena sea mayor o igual al valor especificado.
+- `MaximumLength(length, messageFunc)`: Valida que la longitud de la cadena sea menor o igual al valor especificado.
+- `Between(min, max, messageFunc)`: Valida que el valor se encuentre en el rango inclusivo entre `min` y `max`.
+- `Matches(regex, messageFunc)`: Valida que la cadena cumpla con la expresión regular especificada.
+- `Must(predicate, messageFunc)`: Valida usando una función de predicado personalizada asíncrona: `Func<IServiceProvider, TEntity, CancellationToken, Task<bool>>`.
 
 ### Resultado de validación
 
