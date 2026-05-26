@@ -13,9 +13,10 @@ To register validators, the consuming project must declare a partial class/metho
 ```csharp
 public partial class ConfigureServices
 {
+    private static partial void RegisterValidators(IServiceCollection services);
+
     public static IServiceCollection ConfigureDomain(this IServiceCollection services)
     {
-        // The source generator implements this partial method automatically
         RegisterValidators(services);
         return services;
     }
