@@ -81,8 +81,10 @@ public sealed class ConfigureServicesGenerator : IIncrementalGenerator
 
                     foreach (INamedTypeSymbol typeSymbol in namedTypeSymbol.AllInterfaces.Where(typeSymbol =>
                                  SymbolEqualityComparer.Default.Equals(typeSymbol.OriginalDefinition, validatorSymbol)))
+                    {
                         sourceBuilder.AppendLine(
                             $"        services.AddSingleton(typeof({typeSymbol.ToDisplayString()}), typeof({namedTypeSymbol.ToDisplayString()}));");
+                    }
                 }
 
                 sourceBuilder.AppendLine("    }");

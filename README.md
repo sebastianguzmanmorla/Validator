@@ -1,30 +1,29 @@
 # SebastianGuzmanMorla.Validator
 
-Una librería de validación para .NET que permite crear validadores fuertemente tipados para entidades, con soporte para reglas de validación personalizadas, validaciones condicionales y generación automática de código.
+A strongly-typed validation library for .NET that allows you to easily build entity validators with support for custom validation rules, conditional logic, nested entity mapping, and automated dependency injection registration using a Roslyn Source Generator.
 
-## Características
+## Features
 
-- **Validación fuertemente tipada**: Crea validadores específicos para cada tipo de entidad.
-- **Reglas de propiedad**: Define reglas de validación para propiedades individuales.
-- **Validaciones condicionales**: Ejecuta validaciones solo cuando se cumplen ciertas condiciones.
-- **Validaciones de interfaz**: Soporte para validaciones adicionales a través de interfaces.
-- **Generador de código**: Genera automáticamente interfaces y configuraciones de servicios usando Roslyn.
-- **Integración con DI**: Compatible con Microsoft.Extensions.DependencyInjection.
-- **Manejo de errores flexible**: Controla cómo se manejan los errores de validación (continuar o detener).
+- **Strongly-typed validation**: Write distinct validators specific to each entity model.
+- **Fluent Property Rules**: Chain validation rules on individual properties cleanly.
+- **Conditional Validation**: Run validation rules only when dynamic conditions are satisfied.
+- **Interface Cascading**: Automatically execute and weave validation rules across implemented interfaces.
+- **Source Generator**: Automates validator registration in Microsoft.Extensions.DependencyInjection.
+- **Flexible Control Flow**: Configure rule chains to continue or stop validation upon failure.
 
-## Instalación
+## Installation
 
-Instala el paquete NuGet:
+Install the NuGet package:
 
 ```bash
 dotnet add package SebastianGuzmanMorla.Validator
 ```
 
-## Uso Básico
+## Basic Usage
 
-### 1. Crear un validador
+### 1. Create a model
 
-Primero, define la entidad que quieres validar:
+First, define the entity model you want to validate:
 
 ```csharp
 public class User
@@ -35,7 +34,9 @@ public class User
 }
 ```
 
-Luego, crea una clase que herede de `Validator<TEntity>`:
+### 2. Implement the Validator
+
+Create a validator class inheriting from `Validator<TEntity>` and define rules inside the constructor:
 
 ```csharp
 using SebastianGuzmanMorla.Validator;
@@ -45,24 +46,24 @@ public class UserValidator : Validator<User>
     public UserValidator()
     {
         RuleFor(u => u.Name)
-            .NotNull((_, _) => "El nombre no puede ser nulo")
-            .NotEmpty((_, _) => "El nombre es obligatorio");
+            .NotNull((_, _) => "Name cannot be null")
+            .NotEmpty((_, _) => "Name is required");
 
         RuleFor(u => u.Email)
-            .NotNull((_, _) => "El email no puede ser nulo")
-            .NotEmpty((_, _) => "El email es obligatorio")
-            .EmailAddress((_, _) => "El email debe ser válido");
+            .NotNull((_, _) => "Email cannot be null")
+            .NotEmpty((_, _) => "Email is required")
+            .EmailAddress((_, _) => "Email must be a valid address");
 
         RuleFor(u => u.Age)
-            .NotNull((_, _) => "La edad no puede ser nula")
-            .Minimum(1, (_, _) => "La edad debe ser mayor a 0");
+            .NotNull((_, _) => "Age cannot be null")
+            .Minimum(1, (_, _) => "Age must be greater than 0");
     }
 }
 ```
 
-### 2. Configuración de servicios
+### 3. Service Configuration (Dependency Injection)
 
-El generador de código automáticamente registra los validadores en el contenedor de DI. Solo necesitas tener una clase parcial `ConfigureServices`:
+The Roslyn Source Generator automatically generates the registration logic inside a partial `ConfigureServices` class:
 
 ```csharp
 public partial class ConfigureServices
@@ -71,6 +72,7 @@ public partial class ConfigureServices
 
     public static IServiceCollection ConfigureDomain(this IServiceCollection services)
     {
+        // Automatically registers all validators in the assembly as Singletons
         RegisterValidators(services);
 
         return services;
@@ -78,9 +80,9 @@ public partial class ConfigureServices
 }
 ```
 
-### 3. Usar el validador
+### 4. Execute the Validator
 
-En una aplicación ASP.NET Core con Minimal API, puedes validar directamente en los endpoints:
+Inject `IValidator<T>` into your services or Minimal API endpoints to run validations:
 
 ```csharp
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -101,28 +103,21 @@ app.MapPost("/users", async (User user, [FromServices] IServiceProvider serviceP
         });
     }
     
-    // Procesar el usuario válido
     return Results.Created($"/users/{user.Id}", user);
 });
 
 app.Run();
 ```
 
-Este ejemplo muestra cómo:
+---
 
-- Inyectar `IValidator<User>` usando `[FromServices]` en el endpoint
-- Usar el `IServiceProvider` inyectado para la validación
-- Retornar errores de validación con `BadRequest`
-- Continuar con la lógica si la validación es exitosa
+## Advanced Examples
 
+### Interface Validation Cascading
 
-## Ejemplos Avanzados
+You can validate shared attributes by defining rules on interfaces. The Source Generator automatically weaves these rules into any concrete classes that implement the interface.
 
-### Validación con interfaces y localización
-
-Puedes crear validadores que implementen interfaces y usen servicios de localización para mensajes de error personalizados.
-
-Primero, define la interfaz de validación:
+Define your validation interface inheriting from `IEntityValidation`:
 
 ```csharp
 public interface IDeviceIdValidation : IEntityValidation
@@ -131,18 +126,7 @@ public interface IDeviceIdValidation : IEntityValidation
 }
 ```
 
-Crea una entidad que implemente la interfaz:
-
-```csharp
-public class Device : IDeviceIdValidation
-{
-    public Guid DeviceId { get; set; }
-    public string? Name { get; set; }
-    public string? Model { get; set; }
-}
-```
-
-Luego, crea el validador:
+Create a validator for the interface:
 
 ```csharp
 public class DeviceIdValidator : Validator<IDeviceIdValidation>
@@ -150,81 +134,47 @@ public class DeviceIdValidator : Validator<IDeviceIdValidation>
     public DeviceIdValidator()
     {
         RuleFor(x => x.DeviceId)
-            .NotNull(
-                (x, _) => x.GetRequiredService<IGeneralLocalization>().NotNull(nameof(IDeviceIdValidation.DeviceId)),
-                ValidationErrorHandle.StopProperty)
-            .NotEmpty(
-                (x, _) => x.GetRequiredService<IGeneralLocalization>().NotEmpty(nameof(IDeviceIdValidation.DeviceId)),
-                ValidationErrorHandle.StopProperty)
-            .Must(DeviceIdExist, (x, _) =>
-            {
-                string label = x.GetRequiredService<IGeneralLocalization>().Device;
-
-                return x.GetRequiredService<IGeneralLocalization>().NotExists(label);
-            }, ValidationErrorHandle.StopAll);
+            .NotEmpty((_, _) => "Device ID cannot be empty");
     }
+}
+```
 
-    private static Task<bool> DeviceIdExist(IServiceProvider provider, IDeviceIdValidation entity,
-        CancellationToken cancellationToken = default)
-    {
-        return provider
-            .GetRequiredService<IDeviceRepository>()
-            .Any(entity.DeviceId, cancellationToken);
-    }
+Implement the interface on a concrete entity class (declared as `partial`) and define the class validator:
+
+```csharp
+public class Device : IDeviceIdValidation
+{
+    public Guid DeviceId { get; set; }
+    public string? Name { get; set; }
 }
 
 public partial class DeviceValidator : Validator<Device>
 {
     public DeviceValidator()
     {
-        // Validaciones específicas para Device
         RuleFor(d => d.Name)
-            .NotNull((_, _) => "El nombre del dispositivo no puede ser nulo")
-            .NotEmpty((_, _) => "El nombre del dispositivo es obligatorio")
-            .MinimumLength(2, (_, _) => "El nombre debe tener al menos 2 caracteres");
-
-        RuleFor(d => d.Model)
-            .NotNull((_, _) => "El modelo del dispositivo no puede ser nulo")
-            .NotEmpty((_, _) => "El modelo del dispositivo es obligatorio");
+            .NotEmpty((_, _) => "Device name is required");
     }
 }
 ```
 
-El generador de código automáticamente creará:
+The Source Generator will automatically weave the validations behind the scenes:
 
 ```csharp
-// Código generado automáticamente para ConfigureServices
-public static partial class ConfigureServices
-{
-    private static partial void RegisterValidators(IServiceCollection services)
-    {
-        services.AddSingleton(typeof(IValidator<IDeviceIdValidation>), typeof(DeviceIdValidator));
-        services.AddSingleton(typeof(IValidator<Device>), typeof(DeviceValidator));
-        // Otros validadores...
-    }
-}
-
-// Código generado automáticamente para DeviceValidator
+// Automatically generated by the Source Generator:
 public partial class DeviceValidator
 {
     protected override ImmutableArray<Func<IServiceProvider, Device, CancellationToken, Task<ValidationResult>>> InterfaceValidations =>
     [
-        (serviceProvider, entity, cancellationToken) => serviceProvider.GetRequiredService<IValidator<IDeviceIdValidation>>().Validate(entity, serviceProvider, cancellationToken)
+        (serviceProvider, entity, cancellationToken) => 
+            serviceProvider.GetRequiredService<IValidator<IDeviceIdValidation>>().Validate(entity, serviceProvider, cancellationToken)
     ];
 }
 ```
 
-Este ejemplo muestra:
-- Uso de interfaces (`IDeviceIdValidation`)
-- Entidad concreta (`Device`) que implementa la interfaz
-- Mensajes de error localizados usando servicios inyectados
-- Validaciones personalizadas con `Must`
-- Control de flujo de errores (`ValidationErrorHandle.StopProperty`, `ValidationErrorHandle.StopAll`)
-- Código generado automáticamente por el generador
+### Conditional Validation (`RuleForWhen`)
 
-### Validación condicional con RuleForWhen
-
-Para ejecutar reglas de validación basadas en una condición dinámica (evaluada asíncronamente en tiempo de ejecución), utiliza el método `RuleForWhen` en lugar de `RuleFor`. El predicado condicional recibe el proveedor de servicios (`IServiceProvider`), la entidad y un token de cancelación.
+To conditionally run rules based on a dynamic runtime check, use `RuleForWhen` instead of `RuleFor`:
 
 ```csharp
 public class UserValidator : Validator<User>
@@ -234,14 +184,14 @@ public class UserValidator : Validator<User>
         RuleForWhen(u => u.PromoCode, (serviceProvider, user, cancellationToken) => 
             Task.FromResult(user.HasOptedInForPromo)
         )
-        .NotEmpty((_, _) => "El código de promoción es obligatorio si se ha optado por la promoción");
+        .NotEmpty((_, _) => "Promo code is required when promotional offers are enabled");
     }
 }
 ```
 
-### Validación de objetos anidados y colecciones (ValidateEntity)
+### Nested Entities and Collections (`ValidateEntity`)
 
-La librería permite validar de forma automática propiedades que son otros objetos complejos o colecciones (como listas de entidades). Utilizando `ValidateEntity`, la librería resuelve dinámicamente el validador correspondiente desde el contenedor de dependencias (`IServiceProvider`), ejecuta la validación y añade los errores con rutas anidadas apropiadas (por ejemplo: `Address.Street` o `Phones[0].Number`).
+Validate nested objects or collections of entities recursively. The library will resolve the appropriate validators from DI and append deep paths to error keys (e.g., `Headquarters.Street` or `Employees[0].Name`):
 
 ```csharp
 public class Company
@@ -254,63 +204,58 @@ public class CompanyValidator : Validator<Company>
 {
     public CompanyValidator()
     {
-        // Valida la entidad anidada Headquarters usando IValidator<Address> registrado en el contenedor DI
+        // Validates Headquarters using IValidator<Address>
         ValidateEntity(c => c.Headquarters);
 
-        // Valida cada Employee en la lista usando IValidator<Employee> registrado en el contenedor DI
+        // Validates each item in the collection using IValidator<Employee>
         ValidateEntity(c => c.Employees);
     }
 }
 ```
 
-## API
+---
 
-### Métodos principales (Configuración de Validator)
+## API Reference
 
-- `RuleFor(propertyExpression)`: Define reglas de validación para una propiedad.
-- `RuleForWhen(propertyExpression, whenPredicate)`: Define reglas de validación condicionales para una propiedad que sólo se ejecutan si el predicado asíncrono se cumple.
-- `ValidateEntity(propertyExpression)`: Valida una propiedad que es una entidad anidada o una colección de entidades, resolviendo su respectivo validador del contenedor DI.
+### Validator Methods
 
-### Reglas de validación (ValidationPropertyRules)
+- `RuleFor(propertyExpression)`: Sets up validation rules on a property.
+- `RuleForWhen(propertyExpression, asyncPredicate)`: Sets up conditional validation rules.
+- `ValidateEntity(propertyExpression)`: Configures nested entity or collection validation.
 
-Todos estos métodos aceptan un parámetro opcional `ValidationErrorHandle` al final de la cadena para controlar el flujo de validación.
+### Validation Rules (ValidationPropertyRules)
 
-- `NotNull(messageFunc)`: Valida que la propiedad no sea `null`.
-- `NotEmpty(messageFunc)`: Valida que una cadena no sea nula ni vacía, que una colección/arreglo no esté vacía (ej. `string[]`), o que un `Guid`/`Guid?` no sea igual a `Guid.Empty`.
-- `EmailAddress(messageFunc)`: Valida que la cadena tenga un formato de dirección de correo electrónico válido.
-- `Equal(value, messageFunc)`: Valida que el valor sea igual a una constante especificada.
-- `Equal(propertyExpression, messageFunc)`: Valida que el valor sea igual a otra propiedad de la misma entidad.
-- `NotEqual(value, messageFunc)`: Valida que el valor no sea igual a la constante especificada.
-- `NotEqual(propertyExpression, messageFunc)`: Valida que el valor no sea igual a otra propiedad de la misma entidad.
-- `Minimum(value, messageFunc)`: Valida que el valor sea mayor o igual a `value`.
-- `Maximum(value, messageFunc)`: Valida que el valor sea menor o igual a `value`.
-- `MinimumLength(length, messageFunc)`: Valida que la longitud de la cadena sea mayor o igual al valor especificado.
-- `MaximumLength(length, messageFunc)`: Valida que la longitud de la cadena sea menor o igual al valor especificado.
-- `Between(min, max, messageFunc)`: Valida que el valor se encuentre en el rango inclusivo entre `min` y `max`.
-- `Matches(regex, messageFunc)`: Valida que la cadena cumpla con la expresión regular especificada.
-- `Must(predicate, messageFunc)`: Valida usando una función de predicado personalizada asíncrona: `Func<IServiceProvider, TEntity, CancellationToken, Task<bool>>`.
+All rules accept an optional `ValidationErrorHandle` parameter at the end of the method chain to control execution flow (`Continue`, `StopProperty`, or `StopAll`).
 
-### Resultado de validación
+- `NotNull(messageFunc)`: Asserts property is not null.
+- `NotEmpty(messageFunc)`: Asserts string is not empty/whitespace, collection has elements, or Guid is not `Guid.Empty`.
+- `EmailAddress(messageFunc)`: Validates email format.
+- `Equal(value, messageFunc)`: Asserts property value equals a constant.
+- `Equal(propertyExpression, messageFunc)`: Asserts property value equals another property on the same entity.
+- `NotEqual(value, messageFunc)`: Asserts property value does not equal a constant.
+- `NotEqual(propertyExpression, messageFunc)`: Asserts property value does not equal another property.
+- `Minimum(value, messageFunc)`: Asserts value is `>= value`.
+- `Maximum(value, messageFunc)`: Asserts value is `<= value`.
+- `MinimumLength(length, messageFunc)`: Asserts string length is `>= length`.
+- `MaximumLength(length, messageFunc)`: Asserts string length is `<= length`.
+- `Between(min, max, messageFunc)`: Asserts value is in inclusive range `[min, max]`.
+- `Matches(regex, messageFunc)`: Asserts string matches regex pattern.
+- `Must(predicate, messageFunc)`: Asynchronous predicate returning `Task<bool>` with a predefined message.
+- `Must(dynamicPredicate)`: Asynchronous predicate returning `Task<(bool IsValid, string? ErrorMessage)>` with dynamic error details returned from execution.
 
-`ValidationResult` contiene:
-- `IsValid`: Indica si la validación fue exitosa.
-- `Errors`: Diccionario de errores por propiedad.
+### Validation Result
 
-## Generador de Código
+`ValidationResult` exposes:
+- `IsValid`: Boolean indicating validation success.
+- `Errors`: Dictionary where key is the property path and value is a list of error strings.
 
-La librería incluye generadores de Roslyn que:
-- Registra automáticamente los validadores en el contenedor de DI.
-- Genera código para ejecutar validaciones de interfaces en cascada.
+---
 
-## Requisitos
+## Requirements
 
-- .NET 10.0 o superior
+- .NET 10.0 or higher
 - Microsoft.Extensions.DependencyInjection
 
-## Contribución
+## License
 
-¡Las contribuciones son bienvenidas! Por favor, abre un issue o envía un pull request.
-
-## Licencia
-
-Este proyecto está bajo la licencia MIT. Ver [LICENSE](LICENSE) para más detalles.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -312,4 +312,16 @@ public static class ValidationPropertyRulesExtensions
 
         return propertyRules;
     }
+
+    public static ValidationPropertyRules<TEntity, TProperty> Must<TEntity, TProperty>
+    (
+        this ValidationPropertyRules<TEntity, TProperty> propertyRules,
+        Func<IServiceProvider, TEntity, CancellationToken, Task<(bool IsValid, string? ErrorMessage)>> expression,
+        ValidationErrorHandle errorHandle = ValidationErrorHandle.Continue
+    )
+    {
+        propertyRules.Rules.Add(new ValidationRuleDynamic<TEntity>(expression, errorHandle));
+
+        return propertyRules;
+    }
 }

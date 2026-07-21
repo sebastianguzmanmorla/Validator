@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
@@ -7,7 +7,7 @@
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/</PackageOutputPath>
         <PackageId>SebastianGuzmanMorla.Validator</PackageId>
-        <Version>1.0.2</Version>
+        <Version>1.0.3</Version>
         <Authors>Sebastián Guzmán Morla</Authors>
         <Description>Una librería de validación para .NET con generadores de código automáticos</Description>
         <PackageProjectUrl>https://github.com/sebastianguzmanmorla/Validator</PackageProjectUrl>
@@ -22,7 +22,7 @@
     <ItemGroup>
         <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
         <None Include="..\..\LICENSE" Pack="true" PackagePath="\"/>
-        <None Include="..\..\AGENTS.md" Pack="true" PackagePath="\" />
+        <None Include="..\..\SKILL.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
 
     <Target Name="PrintVersion">
@@ -36,19 +36,19 @@
     <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0"/>
     </ItemGroup>
-    
+
     <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5"/>
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\SebastianGuzmanMorla.Validator.Generator\SebastianGuzmanMorla.Validator.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="..\SebastianGuzmanMorla.Validator.Generator\SebastianGuzmanMorla.Validator.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="..\SebastianGuzmanMorla.Validator.Generator\bin\$(Configuration)\netstandard2.0\SebastianGuzmanMorla.Validator.Generator.dll" 
-              Pack="true" 
-              PackagePath="analyzers/dotnet/cs" />
+        <None Include="..\SebastianGuzmanMorla.Validator.Generator\bin\$(Configuration)\netstandard2.0\SebastianGuzmanMorla.Validator.Generator.dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"/>
     </ItemGroup>
 
 </Project>
