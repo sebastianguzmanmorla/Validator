@@ -7,16 +7,24 @@ public sealed class ValidationRuleDynamic<TEntity>(
     ValidationErrorHandle errorHandle
 ) : IValidationRule<TEntity>
 {
-    private string _errorMessage = string.Empty;
+    /// <summary>
+    /// For a dynamic message, use <see cref="ValidateWithMessage"/>. The legacy accessor returns an empty string.
+    /// </summary>
+    public Func<IServiceProvider, TEntity, string> ValidationMessage => static (_, _) => string.Empty;
 
-    public Func<IServiceProvider, TEntity, string> ValidationMessage => (_, _) => _errorMessage;
     public ValidationErrorHandle ErrorHandle => errorHandle;
 
     public async Task<bool> Validate(IServiceProvider serviceProvider, TEntity item,
         CancellationToken cancellationToken = default)
     {
-        (bool isValid, string? errorMessage) = await validation.Invoke(serviceProvider, item, cancellationToken);
-        _errorMessage = errorMessage ?? string.Empty;
+        (bool isValid, _) = await validation.Invoke(serviceProvider, item, cancellationToken);
         return isValid;
+    }
+
+    public async Task<(bool IsValid, string ErrorMessage)> ValidateWithMessage(
+        IServiceProvider serviceProvider, TEntity item, CancellationToken cancellationToken = default)
+    {
+        (bool isValid, string? errorMessage) = await validation.Invoke(serviceProvider, item, cancellationToken);
+        return (isValid, errorMessage ?? string.Empty);
     }
 }

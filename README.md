@@ -249,12 +249,30 @@ All rules accept an optional `ValidationErrorHandle` parameter at the end of the
 - `IsValid`: Boolean indicating validation success.
 - `Errors`: Dictionary where key is the property path and value is a list of error strings.
 
+When `Validator<TEntity>.Validate` observes cancellation, it completes as a canceled task.
+
+The dynamic `Must` overload includes its message in the owning validation result. When calling
+a rule directly through `IValidationRule<TEntity>`, use `ValidateWithMessage` to read the boolean
+and message together. The legacy `ValidationMessage` accessor on `ValidationRuleDynamic<TEntity>`
+returns an empty string.
+
 ---
 
 ## Requirements
 
 - .NET 10.0 or higher
 - Microsoft.Extensions.DependencyInjection
+
+## Package publishing
+
+`make push` builds and publishes to the configured `NUGET_SOURCE`. Configure the source's API
+key in the publisher's protected user-level NuGet settings, or have the release environment
+supply `NUGET_API_KEY` when using .NET SDK 10.0.300 or later (NuGet 7.6+).
+
+## Regression tests
+
+Run the regression checks with `dotnet run --project tests/Validator.RegressionTests --framework net10.0`.
+The test project also targets `net8.0` and `net9.0`.
 
 ## License
 

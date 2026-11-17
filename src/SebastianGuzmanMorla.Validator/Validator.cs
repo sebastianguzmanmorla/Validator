@@ -17,24 +17,30 @@ public abstract class Validator<TEntity> : IValidator<TEntity> where TEntity : n
     public async Task<ValidationResult> Validate(TEntity value, IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ValidationResult validatorResult = new();
 
         if (!await InterfaceValidation(serviceProvider, value, validatorResult, cancellationToken))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return validatorResult;
         }
 
         foreach ((string propertyPath, IValidationPropertyRules<TEntity> propertyRules) in _propertiesRules)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (propertyRules.WhenRule is not null &&
                 !await propertyRules.WhenRule.Invoke(serviceProvider, value, cancellationToken))
             {
                 continue;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             if
             (
-                cancellationToken.IsCancellationRequested ||
                 (propertyRules.EntityType is not null &&
                  propertyRules.GetValue(value) is { } subValue &&
                  !await EntityValidation(serviceProvider, propertyRules.EntityType, subValue, validatorResult,
@@ -43,10 +49,11 @@ public abstract class Validator<TEntity> : IValidator<TEntity> where TEntity : n
                     cancellationToken)
             )
             {
-                return validatorResult;
+                break;
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return validatorResult;
     }
 
@@ -72,12 +79,10 @@ public abstract class Validator<TEntity> : IValidator<TEntity> where TEntity : n
         foreach (Func<IServiceProvider, TEntity, CancellationToken, Task<ValidationResult>> validator in
                  InterfaceValidations)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return false;
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
             ValidationResult result = await validator.Invoke(serviceProvider, value, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (result.Errors is not null)
             {
@@ -113,37 +118,48 @@ public abstract class Validator<TEntity> : IValidator<TEntity> where TEntity : n
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         Type validatorType = typeof(IValidator<>).MakeGenericType(entityType);
 
         IValidator validator = (IValidator)serviceProvider.GetRequiredService(validatorType);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (value is IList list)
         {
             for (int i = 0; i < list.Count; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 object item = list[i] ?? throw new InvalidOperationException();
 
                 ValidationResult result = await validator.Validate(item, serviceProvider, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                if (result.Errors is null)
+                if (result.Errors is not null)
                 {
-                    continue;
+                    validatorResult.Errors ??= [];
+
+                    foreach ((string subPropertyPath, List<string> errors) in result.Errors)
+                    {
+                        string path = propertyPath + $"[{i}]" + subPropertyPath.Replace("$", string.Empty);
+
+                        validatorResult.Errors.TryAdd(path, []);
+                        validatorResult.Errors[path].AddRange(errors);
+                    }
                 }
 
-                validatorResult.Errors ??= [];
-
-                foreach ((string subPropertyPath, List<string> errors) in result.Errors)
+                if (result.ErrorHandle == ValidationErrorHandle.StopAll)
                 {
-                    string path = propertyPath + $"[{i}]" + subPropertyPath.Replace("$", string.Empty);
-
-                    validatorResult.Errors.TryAdd(path, []);
-                    validatorResult.Errors[path].AddRange(errors);
+                    validatorResult.ErrorHandle = ValidationErrorHandle.StopAll;
+                    return false;
                 }
             }
+
+            return true;
         }
         else
         {
             ValidationResult result = await validator.Validate(value, serviceProvider, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (result.Errors is not null)
             {
@@ -181,18 +197,16 @@ public abstract class Validator<TEntity> : IValidator<TEntity> where TEntity : n
     {
         foreach (IValidationRule<TEntity> rule in rules)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return false;
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
-            bool valid = await rule.Validate(serviceProvider, value, cancellationToken);
+            (bool valid, string message) = await rule.ValidateWithMessage(serviceProvider, value, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (!valid)
             {
                 validatorResult.Errors ??= [];
                 validatorResult.Errors.TryAdd(propertyPath, []);
-                validatorResult.Errors[propertyPath].Add(rule.ValidationMessage.Invoke(serviceProvider, value));
+                validatorResult.Errors[propertyPath].Add(message);
             }
 
             if (!valid && rule.ErrorHandle == ValidationErrorHandle.StopAll)

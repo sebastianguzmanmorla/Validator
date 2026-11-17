@@ -1,8 +1,3 @@
-# Cargar variables desde .env si existe
-ifneq ("$(wildcard .env)","")
-    include .env
-endif
-
 # Variables
 PROJECT_PATH=src/SebastianGuzmanMorla.Validator/SebastianGuzmanMorla.Validator.csproj
 PACK_OUTPUT=artifacts
@@ -15,12 +10,7 @@ else
     RM_DIR = rm -rf $(PACK_OUTPUT)
 endif
 
-.PHONY: clean pack push check-env
-
-check-env:
-ifndef API_KEY
-	$(error API_KEY no encontrada. Asegurate de tener un archivo .env con API_KEY=xxx)
-endif
+.PHONY: clean pack push
 
 clean:
 	@echo "Limpiando binarios..."
@@ -35,9 +25,8 @@ pack: clean build
 	@echo "Empaquetando SebastianGuzmanMorla.Validator..."
 	@dotnet pack $(PROJECT_PATH) -c Release -o $(PACK_OUTPUT)
 
-push: check-env pack
+push: pack
 	@echo "Publicando en NuGet..."
 	@dotnet nuget push $(PACK_OUTPUT)/*.nupkg \
-		--api-key $(API_KEY) \
 		--source $(NUGET_SOURCE) \
 		--skip-duplicate

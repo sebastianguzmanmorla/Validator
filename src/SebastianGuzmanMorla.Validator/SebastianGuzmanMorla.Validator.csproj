@@ -7,7 +7,7 @@
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/</PackageOutputPath>
         <PackageId>SebastianGuzmanMorla.Validator</PackageId>
-        <Version>1.0.3</Version>
+        <Version>2.0.0</Version>
         <Authors>Sebastián Guzmán Morla</Authors>
         <Description>Una librería de validación para .NET con generadores de código automáticos</Description>
         <PackageProjectUrl>https://github.com/sebastianguzmanmorla/Validator</PackageProjectUrl>
